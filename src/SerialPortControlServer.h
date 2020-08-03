@@ -328,9 +328,8 @@ public:
 
     void stopAll() {
         for (auto &a: sessions) {
-            auto ptr = a;
-            if (ptr) {
-                ptr->close();
+            if (a) {
+                a->close();
             }
         }
         sessions.clear();
