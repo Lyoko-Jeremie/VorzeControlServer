@@ -95,6 +95,10 @@ int main(int argc, const char *argv[]) {
 
         boost::asio::executor exSerial = boost::asio::make_strand(ioc);
 
+        // Action Mode Manager
+        auto actionModeManager = std::make_shared<ActionModeManager>(configLoader);
+        actionModeManager->loadActionFromConfig();
+
         // Serial Port Control Server
         auto serialPortControlServer = std::make_shared<SerialPortControlServer>(
                 exSerial, configLoader);

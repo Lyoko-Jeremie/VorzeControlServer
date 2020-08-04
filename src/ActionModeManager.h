@@ -28,21 +28,92 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <mutex>
 #include "ConfigLoader.h"
 
+using ActionTimePoint = std::chrono::time_point<std::chrono::system_clock>;
+using ActionTimeDuration = std::chrono::milliseconds;
+
+
+template<class T>
+ActionTimeDuration ActionTimeDuration_cast(T d) {
+    return std::chrono::duration_cast<ActionTimeDuration>(d);
+}
+
+inline
+ActionTimePoint getActionTimePointNow() {
+    return std::chrono::system_clock::now();
+}
+
+
+struct ActionItem {
+    uint8_t direct;
+    uint8_t speed;
+    size_t timeTick;
+};
+
+struct ActionInfo : public std::enable_shared_from_this<ActionInfo> {
+    std::string name;
+    std::vector<ActionItem> ops;
+};
+
+class ActionSession : public std::enable_shared_from_this<ActionSession> {
+    boost::asio::executor ex;
+
+    std::shared_ptr<ActionInfo> action;
+    const ActionTimePoint initTime;
+
+public:
+    ActionSession(
+            boost::asio::executor ex,
+            std::shared_ptr<ActionInfo> action
+    ) : ex(ex),
+        action(action),
+        initTime(getActionTimePointNow()) {}
+
+    auto getNowAction() {
+        auto dt = ActionTimeDuration_cast(getActionTimePointNow() - initTime);
+        // TODO calc
+        if (dt.count() % action->ops.back().timeTick) {
+//            action->ops.at()
+        }
+    }
+
+};
 
 class ActionModeManager : public std::enable_shared_from_this<ActionModeManager> {
-    boost::asio::executor ex;
     std::shared_ptr<ConfigLoader> configLoader;
+
+    std::map<std::string, std::shared_ptr<ActionInfo>> actionLib;
+    std::mutex actionLibMtx;
 
 public:
     ActionModeManager(
-            boost::asio::executor ex,
             std::shared_ptr<ConfigLoader> configLoader
-    ) : ex(ex),
-        configLoader(configLoader) {}
+    ) : configLoader(configLoader) {}
 
-    void init() {}
+    void loadActionFromConfig() {
+        std::map<std::string, std::shared_ptr<ActionInfo>> actionLibTemp;
+        // TODO load actionLib from file
+
+
+        {
+            std::lock_guard lg{actionLibMtx};
+            actionLib.clear();
+            actionLib = actionLibTemp;
+        }
+    }
+
+    std::shared_ptr<ActionSession> init(const std::string &mode, boost::asio::executor &ex) {
+        std::lock_guard lg{actionLibMtx};
+        auto n = actionLib.find(mode);
+        if (n != actionLib.end()) {
+            return std::make_shared<ActionSession>(ex, n->second);
+        } else {
+            return {};
+        }
+    }
+
 };
 
 

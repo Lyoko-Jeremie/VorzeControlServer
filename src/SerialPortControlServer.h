@@ -367,7 +367,8 @@ public:
             return;
         }
         // TODO the mode manager
-        // actionModeManager
+        actionModeManager->init(mode, ex);
+        // TODO init timer and callback chain
     }
 
 };
