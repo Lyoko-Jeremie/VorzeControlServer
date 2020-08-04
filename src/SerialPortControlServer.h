@@ -299,7 +299,6 @@ public:
                 auto rVo = open(_serialPortName);
                 if (rVo.first) {
                     setBaudRate(19200);
-                    dataBuf = {1, 1, 0};
                 }
                 cb(rVo.second);
             };
@@ -316,10 +315,9 @@ public:
         sendCommand(0, cb);
     }
 
-    std::array<unsigned char, 3> dataBuf{1, 1, 0};
-
     void sendCommand(unsigned char c, const SendCompleteCallback &cb = noop, bool async = false) {
         if (is_open()) {
+            std::array<unsigned char, 3> dataBuf{1, 1, 0};
             dataBuf[2] = c;
             if (async) {
                 sendAsync(std::string{(char *) dataBuf.data(), dataBuf.size()}, cb);
@@ -343,7 +341,7 @@ public:
         if (speed >= 0x80) {
             speed = 0;
         }
-        sendCommand((direct ? 0x80 : 0x00) + speed, cb, true);
+        sendCommand(static_cast<uint8_t>(direct ? 0x80 : 0x00) + speed, cb, true);
     }
 
 };
