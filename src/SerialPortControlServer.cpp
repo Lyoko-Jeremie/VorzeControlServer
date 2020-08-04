@@ -17,3 +17,8 @@
  */
 
 #include "SerialPortControlServer.h"
+
+[[maybe_unused]]
+SerialPortSession::SendCompleteCallback noop = [](const SerialPortSession::error_info &ec) {
+    boost::ignore_unused(ec);
+};

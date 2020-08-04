@@ -32,9 +32,12 @@
 #include <list>
 #include <set>
 #include <tuple>
+#include <utility>
 #include <exception>
 #include <mutex>
 #include <algorithm>
+#include <functional>
+#include <utility>
 #include "ConfigLoader.h"
 
 class SerialPortSession : public std::enable_shared_from_this<SerialPortSession> {
@@ -49,39 +52,61 @@ public:
             boost::asio::executor ex
     ) : ex(ex), serialPort(ex) {}
 
-    bool open(const std::string &_serialPortName) {
+    struct error_info {
+        std::string info;
+        boost::system::error_code ec;
+
+        error_info() = default;
+
+        error_info(std::string info) : info(std::move(info)) {}
+
+        error_info(std::string info, boost::system::error_code ec) : info(std::move(info)), ec(ec) {}
+
+        error_info(boost::system::error_code ec) : ec(ec) {}
+
+        explicit operator bool() const {
+            return !info.empty() || ec;
+        }
+
+        [[nodiscard]]
+        std::string message() const {
+            if (!info.empty()) {
+                return info;
+            }
+            if (ec) {
+                return ec.message();
+            }
+            // no error
+            return {};
+        }
+    };
+
+    auto open(const std::string &_serialPortName) -> std::pair<bool, error_info> {
         close();
         serialPortName = _serialPortName;
         boost::system::error_code ec;
         serialPort.open(serialPortName, ec);
+        error_info ei;
         if (ec) {
-            std::cerr << "SerialPortSession::open() error on serialPortName:" << serialPortName
-                      << " error:" << ec.message() << std::endl;
+            std::stringstream ss;
+            ss << "SerialPortSession::open() error on serialPortName:" << serialPortName
+               << " error:" << ec.message();
+            ei.info += ss.str();
+            std::cerr << ei.info << std::endl;
+            return {false, ei};
         }
-        return !!ec;
+        return {true, ei};
     }
 
     const std::string &getSerialPortName() {
         return serialPortName;
     }
 
-    struct error_info {
-        std::string info;
-
-        error_info() = default;
-
-        error_info(std::string info) : info(info) {}
-
-        explicit operator bool() const {
-            return !info.empty();
-        }
-    };
-
     bool is_open() {
         return serialPort.is_open();
     }
 
-    auto setBaudRate(unsigned int baudRate) -> std::tuple<bool, error_info> {
+    auto setBaudRate(unsigned int baudRate) -> std::pair<bool, error_info> {
         if (serialPort.is_open()) {
             boost::asio::serial_port::baud_rate o(baudRate);
             boost::system::error_code ec;
@@ -94,13 +119,15 @@ public:
                    << " error:" << ec.message();
                 ei.info += ss.str();
                 std::cerr << ei.info << std::endl;
+                return {false, ei};
             }
             return {true, ei};
         }
         return {false, {"!serialPort.is_open()"}};
     }
 
-    auto getBaudRate() -> std::tuple<unsigned int, error_info> {
+    [[nodiscard]]
+    auto getBaudRate() -> std::pair<unsigned int, error_info> {
         if (serialPort.is_open()) {
             boost::asio::serial_port::baud_rate o;
             boost::system::error_code ec;
@@ -112,6 +139,7 @@ public:
                    << " error:" << ec.message();
                 ei.info += ss.str();
                 std::cerr << ei.info << std::endl;
+                return {0, ei};
             }
             return {o.value(), ei};
         }
@@ -120,7 +148,7 @@ public:
 
     auto setParity(
             boost::asio::serial_port::parity::type parityType = boost::asio::serial_port::parity::type::none
-    ) -> std::tuple<bool, error_info> {
+    ) -> std::pair<bool, error_info> {
         if (serialPort.is_open()) {
             boost::asio::serial_port::parity o(parityType);
             boost::system::error_code ec;
@@ -133,13 +161,15 @@ public:
                    << " error:" << ec.message();
                 ei.info += ss.str();
                 std::cerr << ei.info << std::endl;
+                return {false, ei};
             }
             return {true, ei};
         }
         return {false, {"!serialPort.is_open()"}};
     }
 
-    auto getParity() -> std::tuple<boost::asio::serial_port::parity::type, error_info> {
+    [[nodiscard]]
+    auto getParity() -> std::pair<boost::asio::serial_port::parity::type, error_info> {
         if (serialPort.is_open()) {
             boost::asio::serial_port::parity o;
             boost::system::error_code ec;
@@ -157,9 +187,14 @@ public:
         return {boost::asio::serial_port::parity::type::none, {"!serialPort.is_open()"}};
     }
 
-    void sendAsync(const std::string &data) {
+    using SendCompleteCallback = std::function<void(const error_info &ec)>;
+
+    static const SendCompleteCallback noop;
+
+    void sendAsync(const std::string &data, const SendCompleteCallback &cb = noop) {
         if (!serialPort.is_open()) {
-            return; // {.info="!serialPort.is_open()"}
+            cb({"!serialPort.is_open()"});
+            return;
         }
 
         decltype(std::declval<decltype(sendingData)>().emplace()) refData;
@@ -178,7 +213,7 @@ public:
         boost::asio::async_write(
                 serialPort,
                 boost::asio::buffer(*refData.first->get()),
-                [self = shared_from_this(), this, refData](
+                [self = shared_from_this(), this, refData, cb](
                         const boost::system::error_code &ec, std::size_t bytes_transferred
                 ) {
                     boost::ignore_unused(bytes_transferred);
@@ -190,12 +225,14 @@ public:
                         // delete data copy
                         sendingData.erase(refData.first);
                     }
+                    cb(ec);
                 });
     }
 
-    void sendSync(const std::string &data) {
+    void sendSync(const std::string &data, const SendCompleteCallback &cb = noop) {
         if (!serialPort.is_open()) {
-            return; // {.info="!serialPort.is_open()"}
+            cb({"!serialPort.is_open()"});
+            return;
         }
 
         decltype(std::declval<decltype(sendingData)>().emplace()) refData;
@@ -211,8 +248,10 @@ public:
             }
         }
         // call sync or async
-        boost::asio::dispatch(ex, [self = shared_from_this(), this, refData]() {
+        // to keep write op run in same thread
+        boost::asio::dispatch(ex, [self = shared_from_this(), this, refData, cb]() {
             if (!serialPort.is_open()) {
+                cb({"!serialPort.is_open()"});
                 return;
             }
             boost::system::error_code ec;
@@ -229,59 +268,78 @@ public:
                 // delete data copy
                 sendingData.erase(refData.first);
             }
+            cb(ec);
         });
     }
 
     void close() {
         if (serialPort.is_open()) {
             // send end op
-            stop();
+            stop([self = shared_from_this(), this](const error_info &) {
 
-            // close
-            boost::system::error_code ec;
-            serialPort.close(ec);
-            if (ec) {
-                std::cerr << "setBaudRate::close() error on serialPortName:" << serialPortName
-                          << " error:" << ec.message() << std::endl;
-            }
+                // then close it
+                boost::system::error_code ec;
+                serialPort.close(ec);
+                if (ec) {
+                    std::cerr << "setBaudRate::close() error on serialPortName:" << serialPortName
+                              << " error:" << ec.message() << std::endl;
+                }
+
+            });
         }
     }
 
 public:
 
-    void init(const std::string &_serialPortName) {
-        boost::asio::dispatch(ex, [self = shared_from_this(), this, _serialPortName] {
+    void init(const std::string &_serialPortName, const SendCompleteCallback &cb = noop) {
+        boost::asio::dispatch(ex, [self = shared_from_this(), this, _serialPortName, cb] {
+
+            auto start = [self = shared_from_this(), this, _serialPortName, cb](const error_info &) {
+                setBaudRate(19200);
+                auto rVo = open(_serialPortName);
+                if (rVo.first) {
+                    setBaudRate(19200);
+                    dataBuf = {1, 1, 0};
+                }
+                cb(rVo.second);
+            };
+
             if (is_open()) {
-                stop();
+                stop(start);
+            } else {
+                start(error_info{});
             }
-            setBaudRate(19200);
-            open(_serialPortName);
-            setBaudRate(19200);
-            dataBuf = {1, 1, 0};
         });
     }
 
-    void stop() {
-        sendCommand(0);
+    void stop(const SendCompleteCallback &cb = noop) {
+        sendCommand(0, cb);
     }
 
     std::array<unsigned char, 3> dataBuf{1, 1, 0};
 
-    void sendCommand(unsigned char c) {
+    void sendCommand(unsigned char c, const SendCompleteCallback &cb = noop) {
         if (is_open()) {
             dataBuf[2] = c;
-            sendSync(std::string{(char *) dataBuf.data(), dataBuf.size()});
+            sendSync(std::string{(char *) dataBuf.data(), dataBuf.size()}, cb);
+        } else {
+            cb({"!serialPort.is_open()"});
+            return;
         }
     }
 
-    void setState(bool direct = true, uint8_t speed = 0) {
+    void setState(bool direct = true, uint8_t speed = 0, const SendCompleteCallback &cb = noop) {
+        if (!is_open()) {
+            cb({"!serialPort.is_open()"});
+            return;
+        }
         if (speed > 100) {
             speed = 100;
         }
         if (speed >= 0x80) {
             speed = 0;
         }
-        sendCommand((direct ? 0x80 : 0x00) + speed);
+        sendCommand((direct ? 0x80 : 0x00) + speed, cb);
     }
 
 };
