@@ -318,10 +318,14 @@ public:
 
     std::array<unsigned char, 3> dataBuf{1, 1, 0};
 
-    void sendCommand(unsigned char c, const SendCompleteCallback &cb = noop) {
+    void sendCommand(unsigned char c, const SendCompleteCallback &cb = noop, bool async = false) {
         if (is_open()) {
             dataBuf[2] = c;
-            sendSync(std::string{(char *) dataBuf.data(), dataBuf.size()}, cb);
+            if (async) {
+                sendAsync(std::string{(char *) dataBuf.data(), dataBuf.size()}, cb);
+            } else {
+                sendSync(std::string{(char *) dataBuf.data(), dataBuf.size()}, cb);
+            }
         } else {
             cb({"!serialPort.is_open()"});
             return;
@@ -339,7 +343,7 @@ public:
         if (speed >= 0x80) {
             speed = 0;
         }
-        sendCommand((direct ? 0x80 : 0x00) + speed, cb);
+        sendCommand((direct ? 0x80 : 0x00) + speed, cb, true);
     }
 
 };
