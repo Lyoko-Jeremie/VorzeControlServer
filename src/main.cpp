@@ -93,13 +93,15 @@ int main(int argc, const char *argv[]) {
         configLoader->load(config_file);
         configLoader->print();
 
+        boost::asio::executor exSerial = boost::asio::make_strand(ioc);
+
         // Serial Port Control Server
         auto serialPortControlServer = std::make_shared<SerialPortControlServer>(
-                boost::asio::make_strand(ioc), configLoader);
+                exSerial, configLoader);
         serialPortControlServer->start();
 
         // web remote control server
-        auto webControlServer = std::make_shared<WebControlServer>(ex, configLoader);
+        auto webControlServer = std::make_shared<WebControlServer>(ex, configLoader, serialPortControlServer);
         webControlServer->start();
 
         // web page provider server

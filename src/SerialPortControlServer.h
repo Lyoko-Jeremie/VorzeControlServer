@@ -39,6 +39,7 @@
 #include <functional>
 #include <utility>
 #include "ConfigLoader.h"
+#include "ActionModeManager.h"
 
 struct error_info {
     std::string info;
@@ -70,16 +71,23 @@ struct error_info {
 };
 
 class SerialPortSession : public std::enable_shared_from_this<SerialPortSession> {
+protected:
     boost::asio::executor ex;
+    std::shared_ptr<ConfigLoader> configLoader;
     boost::asio::serial_port serialPort;
     std::string serialPortName;
 
     std::set<std::shared_ptr<std::string>> sendingData;
     std::mutex sendingDataMtx;
+
 public:
     SerialPortSession(
-            boost::asio::executor ex
-    ) : ex(ex), serialPort(ex) {}
+            boost::asio::executor ex,
+            std::shared_ptr<ConfigLoader> configLoader
+    ) : ex(ex),
+        configLoader(configLoader),
+        serialPort(ex),
+        actionModeManager(std::make_shared<ActionModeManager>(ex, configLoader)) {}
 
     auto open(const std::string &_serialPortName) -> std::pair<bool, error_info> {
         close();
@@ -344,14 +352,35 @@ public:
         sendCommand(static_cast<uint8_t>(direct ? 0x80 : 0x00) + speed, cb, true);
     }
 
+protected:
+
+    std::shared_ptr<ActionModeManager> actionModeManager;
+
+public:
+    void setState(
+            std::string mode,
+            bool direct = true,
+            uint8_t speed = 0,
+            const SendCompleteCallback &cb = noop) {
+        if ("none" == mode) {
+            setState(direct, speed, cb);
+            return;
+        }
+        // TODO the mode manager
+        // actionModeManager
+    }
+
 };
+
+
+using SerialPortSessionTarget = SerialPortSession;
 
 
 class SerialPortControlServer : public std::enable_shared_from_this<SerialPortControlServer> {
     boost::asio::executor ex;
     std::shared_ptr<ConfigLoader> configLoader;
 
-    std::list<std::shared_ptr<SerialPortSession>> sessions;
+    std::list<std::shared_ptr<SerialPortSessionTarget>> sessions;
 public:
 
     SerialPortControlServer(
@@ -367,23 +396,23 @@ public:
         // TODO
     }
 
-    std::shared_ptr<SerialPortSession> create(
+    std::shared_ptr<SerialPortSessionTarget> create(
             const std::string &_serialPortName
     ) {
-        auto s = std::make_shared<SerialPortSession>(this->ex);
+        auto s = std::make_shared<SerialPortSessionTarget>(ex, configLoader);
         sessions.push_back(s->shared_from_this());
         s->init(_serialPortName);
         return s;
     }
 
-    std::shared_ptr<SerialPortSession> get(const std::string &_serialPortName) {
+    std::shared_ptr<SerialPortSessionTarget> get(const std::string &_serialPortName) {
         auto it = std::find_if(
                 sessions.begin(), sessions.end(),
                 [_serialPortName](const decltype(sessions)::value_type &a) {
                     return a->getSerialPortName() == _serialPortName;
                 }
         );
-        return (it != sessions.end() ? *it : std::shared_ptr<SerialPortSession>{});
+        return (it != sessions.end() ? *it : std::shared_ptr<SerialPortSessionTarget>{});
     }
 
     void stopAll() {

@@ -117,11 +117,58 @@ void HttpConnectSession::path_op(HttpConnectSession::QueryPairsType &queryPairs)
 
         // find target
         auto targetMode = queryPairs.find("_targetMode");
-        auto target = queryPairs.find("_target");
+        auto targetCOM = queryPairs.find("_targetCOM");
+        auto targetDirect = queryPairs.find("_targetDirect");
+        auto targetSpeed = queryPairs.find("_targetSpeed");
 
         try {
 
             // TODO
+            if (targetMode != queryPairs.end() &&
+                targetCOM != queryPairs.end() &&
+                targetDirect != queryPairs.end() &&
+                targetSpeed != queryPairs.end()) {
+                auto direct = boost::lexical_cast<uint8_t>(targetDirect->second);
+                auto speed = boost::lexical_cast<uint8_t>(targetSpeed->second);
+                auto comName = targetCOM->second;
+                auto mode = targetMode->second;
+
+                bool directBool = direct == 1;
+                bool directIsValid = direct == 1 || direct == 0;
+                bool speedIsValid = speed >= 0 && speed <= 100;
+
+                if (!directIsValid || !speedIsValid) {
+                    if (!directIsValid) {
+                        // TODO bad direct
+                    }
+                    if (!speedIsValid) {
+                        // TODO bad speed
+                    }
+                } else {
+
+                    auto port = serialPortControlServer->get(comName);
+                    if (port) {
+                        if (port->is_open()) {
+                            port->setState(
+                                    mode, directBool, speed,
+                                    [](const error_info &ec) {
+                                        if (ec) {
+                                            // error
+                                        } else {
+                                            // ok
+                                        }
+                                    }
+                            );
+                        } else {
+                            // TODO COM not open
+                        }
+                    } else {
+                        // TODO not this COM
+                    }
+
+                }
+
+            }
 
         } catch (const boost::bad_lexical_cast &e) {
             std::cout << "boost::bad_lexical_cast:" << e.what() << std::endl;

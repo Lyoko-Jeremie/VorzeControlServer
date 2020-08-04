@@ -81,7 +81,11 @@ add_executable(${ProjectMainName}
         src/EmbedWebServer.cpp
         src/EmbedWebServer.h
         src/SerialPortControlServer.cpp
-        src/SerialPortControlServer.h)
+        src/SerialPortControlServer.h
+        src/ActionModeManager.cpp
+        src/ActionModeManager.h
+        src/AsyncDelay.cpp
+        src/AsyncDelay.h)
 
 
 target_link_libraries(${ProjectMainName} ${CMAKE_THREAD_LIBS_INIT})

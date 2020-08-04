@@ -30,17 +30,21 @@
 #include <sstream>
 #include <map>
 #include "ConfigLoader.h"
+#include "SerialPortControlServer.h"
 
 
 // https://www.boost.org/doc/libs/1_73_0/libs/beast/example/http/server/small/http_server_small.cpp
 
 class HttpConnectSession : public std::enable_shared_from_this<HttpConnectSession> {
     std::shared_ptr<ConfigLoader> configLoader;
+    std::shared_ptr<SerialPortControlServer> serialPortControlServer;
 
 public:
     HttpConnectSession(boost::asio::ip::tcp::socket socket,
-                       std::shared_ptr<ConfigLoader> configLoader)
+                       std::shared_ptr<ConfigLoader> configLoader,
+                       std::shared_ptr<SerialPortControlServer> serialPortControlServer)
             : configLoader(configLoader),
+              serialPortControlServer(serialPortControlServer),
               socket_(std::move(socket)) {}
 
     void start() {
@@ -93,15 +97,18 @@ protected:
 class WebControlServer : public std::enable_shared_from_this<WebControlServer> {
     boost::asio::executor ex;
     std::shared_ptr<ConfigLoader> configLoader;
+    std::shared_ptr<SerialPortControlServer> serialPortControlServer;
 
 public:
 
     WebControlServer(
             boost::asio::executor ex,
-            std::shared_ptr<ConfigLoader> configLoader
+            std::shared_ptr<ConfigLoader> configLoader,
+            std::shared_ptr<SerialPortControlServer> serialPortControlServer
     ) :
             ex(ex),
             configLoader(configLoader),
+            serialPortControlServer(serialPortControlServer),
             address(boost::asio::ip::make_address(configLoader->config.controlServerHost)),
             port(configLoader->config.controlServerPort),
             acceptor(ex, {address, port}),
@@ -131,7 +138,8 @@ private:
                     if (!ec) {
                         std::make_shared<HttpConnectSession>(
                                 std::move(socket),
-                                configLoader
+                                configLoader,
+                                serialPortControlServer
                         )->start();
                     }
                     if (ec && (
