@@ -40,6 +40,35 @@
 #include <utility>
 #include "ConfigLoader.h"
 
+struct error_info {
+    std::string info;
+    boost::system::error_code ec;
+
+    error_info() = default;
+
+    error_info(std::string info) : info(std::move(info)) {}
+
+    error_info(std::string info, boost::system::error_code ec) : info(std::move(info)), ec(ec) {}
+
+    error_info(boost::system::error_code ec) : ec(ec) {}
+
+    explicit operator bool() const {
+        return !info.empty() || ec;
+    }
+
+    [[nodiscard]]
+    std::string message() const {
+        if (!info.empty()) {
+            return info;
+        }
+        if (ec) {
+            return ec.message();
+        }
+        // no error
+        return {};
+    }
+};
+
 class SerialPortSession : public std::enable_shared_from_this<SerialPortSession> {
     boost::asio::executor ex;
     boost::asio::serial_port serialPort;
@@ -51,35 +80,6 @@ public:
     SerialPortSession(
             boost::asio::executor ex
     ) : ex(ex), serialPort(ex) {}
-
-    struct error_info {
-        std::string info;
-        boost::system::error_code ec;
-
-        error_info() = default;
-
-        error_info(std::string info) : info(std::move(info)) {}
-
-        error_info(std::string info, boost::system::error_code ec) : info(std::move(info)), ec(ec) {}
-
-        error_info(boost::system::error_code ec) : ec(ec) {}
-
-        explicit operator bool() const {
-            return !info.empty() || ec;
-        }
-
-        [[nodiscard]]
-        std::string message() const {
-            if (!info.empty()) {
-                return info;
-            }
-            if (ec) {
-                return ec.message();
-            }
-            // no error
-            return {};
-        }
-    };
 
     auto open(const std::string &_serialPortName) -> std::pair<bool, error_info> {
         close();
