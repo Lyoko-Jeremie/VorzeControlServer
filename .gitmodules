@@ -1,0 +1,6 @@
+[submodule "src/3thlib/wmi"]
+	path = src/3thlib/wmi
+	url = https://github.com/Thomas-Sparber/wmi.git
+[submodule "src/3thlib/promise-cpp"]
+	path = src/3thlib/promise-cpp
+	url = https://github.com/xhawk18/promise-cpp.git
