@@ -40,35 +40,7 @@
 #include <utility>
 #include "ConfigLoader.h"
 #include "ActionModeManager.h"
-
-struct error_info {
-    std::string info;
-    boost::system::error_code ec;
-
-    error_info() = default;
-
-    error_info(std::string info) : info(std::move(info)) {}
-
-    error_info(std::string info, boost::system::error_code ec) : info(std::move(info)), ec(ec) {}
-
-    error_info(boost::system::error_code ec) : ec(ec) {}
-
-    explicit operator bool() const {
-        return !info.empty() || ec;
-    }
-
-    [[nodiscard]]
-    std::string message() const {
-        if (!info.empty()) {
-            return info;
-        }
-        if (ec) {
-            return ec.message();
-        }
-        // no error
-        return {};
-    }
-};
+#include "error_info.h"
 
 class SerialPortSession : public std::enable_shared_from_this<SerialPortSession> {
 protected:
@@ -83,11 +55,12 @@ protected:
 public:
     SerialPortSession(
             boost::asio::executor ex,
-            std::shared_ptr<ConfigLoader> configLoader
+            std::shared_ptr<ConfigLoader> configLoader,
+            std::shared_ptr<ActionModeManager> actionModeManager
     ) : ex(ex),
         configLoader(configLoader),
         serialPort(ex),
-        actionModeManager(std::make_shared<ActionModeManager>(ex, configLoader)) {}
+        actionModeManager(actionModeManager) {}
 
     auto open(const std::string &_serialPortName) -> std::pair<bool, error_info> {
         close();
@@ -380,16 +353,19 @@ using SerialPortSessionTarget = SerialPortSession;
 class SerialPortControlServer : public std::enable_shared_from_this<SerialPortControlServer> {
     boost::asio::executor ex;
     std::shared_ptr<ConfigLoader> configLoader;
+    std::shared_ptr<ActionModeManager> actionModeManager;
 
     std::list<std::shared_ptr<SerialPortSessionTarget>> sessions;
 public:
 
     SerialPortControlServer(
             boost::asio::executor ex,
-            std::shared_ptr<ConfigLoader> configLoader
+            std::shared_ptr<ConfigLoader> configLoader,
+            std::shared_ptr<ActionModeManager> actionModeManager
     ) :
             ex(ex),
-            configLoader(configLoader) {
+            configLoader(configLoader),
+            actionModeManager(actionModeManager) {
     }
 
 public:
@@ -400,7 +376,7 @@ public:
     std::shared_ptr<SerialPortSessionTarget> create(
             const std::string &_serialPortName
     ) {
-        auto s = std::make_shared<SerialPortSessionTarget>(ex, configLoader);
+        auto s = std::make_shared<SerialPortSessionTarget>(ex, configLoader, actionModeManager);
         sessions.push_back(s->shared_from_this());
         s->init(_serialPortName);
         return s;

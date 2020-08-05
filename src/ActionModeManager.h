@@ -70,6 +70,12 @@ struct ActionItem {
     bool operator<(const ActionItem &o) const {
         return this->timeTick < o.timeTick;
     }
+
+    static ActionItem createTimeTickObject(size_t timeTick) {
+        ActionItem a;
+        a.timeTick = timeTick;
+        return a;
+    }
 };
 
 struct ActionInfo : public std::enable_shared_from_this<ActionInfo> {
@@ -108,7 +114,8 @@ public:
 
         // find the first item that timeTick bigger than tick
         // way 1
-        auto nIt = std::upper_bound(action->ops.begin(), action->ops.end(), ActionItem{.timeTick=tick});
+        auto nIt = std::upper_bound(action->ops.begin(), action->ops.end(),
+                                    ActionItem::createTimeTickObject(tick));
 
         // way 2
         // size_t index = 0;

@@ -71,11 +71,29 @@ endif ()
 
 find_package(OpenSSL 1.1.0 COMPONENTS SSL Crypto REQUIRED)
 
+# custom 3th lib
+# https://stackoverflow.com/questions/20746936/what-use-is-find-package-if-you-need-to-specify-cmake-module-path-anyway
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+
+# find wmi
+set(Wmi_ROOT src/3thlib/wmi)
+find_package(Wmi REQUIRED)
+
+message(STATUS "WMI_INCLUDE_DIRS: ${WMI_INCLUDE_DIRS}")
+message(STATUS "WMI_LIBRARIES: ${WMI_LIBRARIES}")
+
+# find wmi
+set(PromiseCpp_ROOT src/3thlib/promise-cpp)
+find_package(PromiseCpp REQUIRED)
+
+message(STATUS "PromiseCpp_INCLUDE_DIRS: ${PromiseCpp_INCLUDE_DIRS}")
 
 add_executable(${ProjectMainName}
         src/main.cpp
         src/ConfigLoader.cpp
         src/ConfigLoader.h
+        src/error_info.cpp
+        src/error_info.h
         src/WebControlServer.cpp
         src/WebControlServer.h
         src/EmbedWebServer.cpp
@@ -85,8 +103,16 @@ add_executable(${ProjectMainName}
         src/ActionModeManager.cpp
         src/ActionModeManager.h
         src/AsyncDelay.cpp
-        src/AsyncDelay.h)
+        src/AsyncDelay.h
+        src/SerialPortFinder.cpp
+        src/SerialPortFinder.h)
 
+# include wmi
+include_directories(${WMI_INCLUDE_DIRS})
+target_link_libraries(${ProjectMainName} ${WMI_LIBRARIES})
+
+# include PromiseCpp
+include_directories(${PromiseCpp_INCLUDE_DIRS})
 
 target_link_libraries(${ProjectMainName} ${CMAKE_THREAD_LIBS_INIT})
 

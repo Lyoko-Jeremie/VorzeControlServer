@@ -23,10 +23,13 @@
 #include <boost/program_options.hpp>
 #include <memory>
 #include <exception>
+#include <regex>
+#include <algorithm>
 #include "ConfigLoader.h"
 #include "WebControlServer.h"
 #include "EmbedWebServer.h"
 #include "SerialPortControlServer.h"
+#include "SerialPortFinder.h"
 
 #ifdef USE_BOOST_THEAD
 
@@ -39,6 +42,31 @@
 #define DEFAULT_CONFIG R"(config.json)"
 #endif // DEFAULT_CONFIG
 
+
+int main0(int argc, const char *argv[]) {
+
+    boost::asio::io_context ioc;
+    boost::asio::executor ex = boost::asio::make_strand(ioc);
+
+    auto serialPortFinder = std::make_shared<SerialPortFinder>(ex);
+
+
+    serialPortFinder->find([](const std::vector<SerialPortNameInfo> &ports, const error_info &e) {
+        if (e) {
+            std::cout << e.message() << std::endl;
+            return;
+        }
+        std::cout << std::endl;
+        for (const auto &a : ports) {
+            std::cout << a.userFriendlyName << std::endl;
+            std::cout << a.comName << std::endl;
+        }
+    });
+
+
+    ioc.run();
+
+}
 
 int main(int argc, const char *argv[]) {
     std::string config_file;
@@ -99,13 +127,17 @@ int main(int argc, const char *argv[]) {
         auto actionModeManager = std::make_shared<ActionModeManager>(configLoader);
         actionModeManager->loadActionFromConfig();
 
+        // Serial Port Finder
+        auto serialPortFinder = std::make_shared<SerialPortFinder>(ex);
+
         // Serial Port Control Server
         auto serialPortControlServer = std::make_shared<SerialPortControlServer>(
-                exSerial, configLoader);
+                exSerial, configLoader, actionModeManager);
         serialPortControlServer->start();
 
         // web remote control server
-        auto webControlServer = std::make_shared<WebControlServer>(ex, configLoader, serialPortControlServer);
+        auto webControlServer = std::make_shared<WebControlServer>(
+                ex, configLoader, serialPortControlServer);
         webControlServer->start();
 
         // web page provider server
