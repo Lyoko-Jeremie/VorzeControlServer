@@ -74,6 +74,7 @@ struct ActionItem {
 
 struct ActionInfo : public std::enable_shared_from_this<ActionInfo> {
     std::string name;
+    long long int MsPerTick = ActionDurationPerTick;
     /**
      * ops must sort by ActionItem::timeTick
      */
@@ -103,7 +104,7 @@ public:
         }
 
         // calc tick
-        auto tick = (dt.count() / ActionDurationPerTick) % action->ops.back().timeTick;
+        auto tick = (dt.count() / action->MsPerTick) % action->ops.back().timeTick;
 
         // find the first item that timeTick bigger than tick
         // way 1
