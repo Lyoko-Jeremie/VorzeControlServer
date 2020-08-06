@@ -43,6 +43,7 @@ struct Win32_PnPEntity {
     }
 
     static std::string getWmiClassName() {
+        // from https://github.com/Net005/Vorze-PlayerHelper/blob/master/Libraries/Cyclone2/Devices/UsbDongle.cs
         return "Win32_PnPEntity";
     }
 };
@@ -55,6 +56,7 @@ struct Win32_SerialPort {
     }
 
     static std::string getWmiClassName() {
+        // from http://www.naughter.com/enumser.html
         return "Win32_SerialPort";
     }
 };
@@ -88,6 +90,7 @@ public:
             try {
 
                 auto wmis = Wmi::retrieveAllWmi<TargetWmi>();
+                // from https://github.com/Net005/Vorze-PlayerHelper/blob/master/Libraries/Cyclone2/Devices/UsbDongle.cs
                 std::regex regexFind{R"(\((COM[1-9][0-9]?[0-9]?)\)$)"};
                 std::regex regexGet{R"(.*\((COM[1-9][0-9]?[0-9]?)\)$)"};
                 decltype(wmis) wmif;
