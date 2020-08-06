@@ -230,6 +230,7 @@ public:
         }
         // call sync or async
         // to keep write op run in same thread
+        // try-inline run, if the caller same in the `ex`
         boost::asio::dispatch(ex, [self = shared_from_this(), this, refData, cb]() {
             if (!serialPort.is_open()) {
                 cb({"!serialPort.is_open()"});

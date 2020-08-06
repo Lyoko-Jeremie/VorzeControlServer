@@ -85,6 +85,7 @@ public:
     using FindCallback = std::function<void(const std::vector<SerialPortNameInfo> &ports, const error_info &e)>;
 
     void find(FindCallback callback) {
+        // non-block
         boost::asio::post(ex, [callback]() {
             std::vector<SerialPortNameInfo> ports;
             try {
