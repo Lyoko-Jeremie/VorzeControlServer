@@ -85,8 +85,13 @@ message(STATUS "WMI_LIBRARIES: ${WMI_LIBRARIES}")
 # find wmi
 set(PromiseCpp_ROOT src/3thlib/promise-cpp)
 find_package(PromiseCpp REQUIRED)
-
 message(STATUS "PromiseCpp_INCLUDE_DIRS: ${PromiseCpp_INCLUDE_DIRS}")
+
+# https://github.com/jbeder/yaml-cpp
+find_package(yaml-cpp REQUIRED)
+message(STATUS "YAML_CPP_LIBRARIES: ${YAML_CPP_LIBRARIES}")
+message(STATUS "YAML_CPP_INCLUDE_DIR: ${YAML_CPP_INCLUDE_DIR}")
+
 
 add_executable(${ProjectMainName}
         src/main.cpp
@@ -113,6 +118,10 @@ target_link_libraries(${ProjectMainName} ${WMI_LIBRARIES})
 
 # include PromiseCpp
 include_directories(${PromiseCpp_INCLUDE_DIRS})
+
+# include yaml-cpp
+include_directories(${YAML_CPP_INCLUDE_DIR})
+target_link_libraries(${ProjectMainName} ${YAML_CPP_LIBRARIES})
 
 target_link_libraries(${ProjectMainName} ${CMAKE_THREAD_LIBS_INIT})
 
