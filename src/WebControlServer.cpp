@@ -34,7 +34,7 @@ std::string HttpConnectSession::createJsonString() {
         config.put("listenHost", c.listenHost);
         config.put("listenPort", c.listenPort);
         config.put("controlServerHost", c.controlServerHost);
-        config.put("controlServerHost", c.controlServerHost);
+        config.put("controlServerPort", c.controlServerPort);
 //        config.put("retryTimes", c.retryTimes);
 //        config.put("connectTimeout", c.connectTimeout.count());
 //        config.put("sleepTime", c.sleepTime.count());
@@ -56,6 +56,24 @@ std::string HttpConnectSession::createJsonString() {
         root.add_child("config", config);
     }
 
+    if (serialPortControlServer) {
+
+        {
+            boost::property_tree::ptree pPI;
+            auto pi = serialPortControlServer->getPortsInfo();
+
+            for (const auto &a : pi) {
+                boost::property_tree::ptree n;
+
+                n.put("comName", a.comName);
+                n.put("userFriendlyName", a.userFriendlyName);
+
+                pPI.push_back(std::make_pair("", n));
+            }
+
+            root.add_child("portsInfo", pPI);
+        }
+    }
 
     std::stringstream ss;
     boost::property_tree::write_json(ss, root);

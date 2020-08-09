@@ -66,6 +66,16 @@ int main0(int argc, const char *argv[]) {
 
     ioc.run();
 
+    return 0;
+}
+
+#include <yaml-cpp/yaml.h>
+
+int main1(int argc, const char *argv[]) {
+
+    YAML::LoadFile("test.yaml");
+
+    return 0;
 }
 
 int main(int argc, const char *argv[]) {
@@ -132,7 +142,7 @@ int main(int argc, const char *argv[]) {
 
         // Serial Port Control Server
         auto serialPortControlServer = std::make_shared<SerialPortControlServer>(
-                exSerial, configLoader, actionModeManager);
+                exSerial, configLoader, actionModeManager, serialPortFinder);
         serialPortControlServer->start();
 
         // web remote control server

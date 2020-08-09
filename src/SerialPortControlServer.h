@@ -41,6 +41,7 @@
 #include "ConfigLoader.h"
 #include "ActionModeManager.h"
 #include "error_info.h"
+#include "SerialPortFinder.h"
 
 class SerialPortSession : public std::enable_shared_from_this<SerialPortSession> {
 protected:
@@ -355,23 +356,45 @@ class SerialPortControlServer : public std::enable_shared_from_this<SerialPortCo
     boost::asio::executor ex;
     std::shared_ptr<ConfigLoader> configLoader;
     std::shared_ptr<ActionModeManager> actionModeManager;
+    std::shared_ptr<SerialPortFinder> serialPortFinder;
 
     std::list<std::shared_ptr<SerialPortSessionTarget>> sessions;
+
+    std::vector<SerialPortNameInfo> portsInfo;
 public:
 
-    SerialPortControlServer(
-            boost::asio::executor ex,
-            std::shared_ptr<ConfigLoader> configLoader,
-            std::shared_ptr<ActionModeManager> actionModeManager
-    ) :
+    SerialPortControlServer(boost::asio::executor ex,
+                            std::shared_ptr<ConfigLoader> configLoader,
+                            std::shared_ptr<ActionModeManager> actionModeManager,
+                            std::shared_ptr<SerialPortFinder> serialPortFinder) :
             ex(ex),
             configLoader(configLoader),
-            actionModeManager(actionModeManager) {
+            actionModeManager(actionModeManager),
+            serialPortFinder(serialPortFinder) {
     }
 
 public:
     void start() {
+#ifdef PromiseCpp_FOUND
+        serialPortFinder->promiseFind().then(
+                [self = shared_from_this(), this](const std::vector<SerialPortNameInfo> &ports) {
+                    portsInfo = ports;
+                });
+#else // ^^^ PromiseCpp_FOUND / PromiseCpp not FOUND vvv
+        serialPortFinder->find(
+                [self = shared_from_this(), this](const std::vector<SerialPortNameInfo> &ports, const error_info &e) {
+                    if (e) {
+                        return;
+                    }
+                    portsInfo = ports;
+                })
+#endif // PromiseCpp_FOUND
+
         // TODO
+    }
+
+    const std::vector<SerialPortNameInfo> &getPortsInfo() {
+        return portsInfo;
     }
 
     std::shared_ptr<SerialPortSessionTarget> create(

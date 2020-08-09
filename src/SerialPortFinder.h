@@ -35,6 +35,12 @@
 #include "wmiclasses.hpp"
 #include "error_info.h"
 
+#ifdef PromiseCpp_FOUND
+
+#include "promise.hpp"
+
+#endif // PromiseCpp_FOUND
+
 struct Win32_PnPEntity {
     std::string Name;
 
@@ -129,6 +135,22 @@ public:
             return;
         });
     }
+
+#ifdef PromiseCpp_FOUND
+
+    promise::Defer promiseFind() {
+        return promise::newPromise([self = shared_from_this(), this](promise::Defer d) {
+            find([self, this, d](const std::vector<SerialPortNameInfo> &ports, const error_info &e) {
+                if (e) {
+                    d.reject(e);
+                    return;
+                }
+                d.resolve(ports);
+            });
+        });
+    }
+
+#endif // PromiseCpp_FOUND
 };
 
 
