@@ -86,11 +86,24 @@ message(STATUS "WMI_LIBRARIES: ${WMI_LIBRARIES}")
 set(PromiseCpp_ROOT src/3thlib/promise-cpp)
 find_package(PromiseCpp REQUIRED)
 message(STATUS "PromiseCpp_INCLUDE_DIRS: ${PromiseCpp_INCLUDE_DIRS}")
+message(STATUS "PromiseCpp_FOUND: ${PromiseCpp_FOUND}")
+if (PromiseCpp_FOUND)
+    message(STATUS "PromiseCpp_FOUND")
+    add_definitions(-DPromiseCpp_FOUND=1)
+    if (NOT NOT_USE_BOOST_THEAD)
+        message(STATUS "PM_MULTITHREAD Mode")
+        add_definitions(-DPM_MULTITHREAD=1)
+    endif ()
+endif ()
 
 # https://github.com/jbeder/yaml-cpp
 find_package(yaml-cpp REQUIRED)
 message(STATUS "YAML_CPP_LIBRARIES: ${YAML_CPP_LIBRARIES}")
 message(STATUS "YAML_CPP_INCLUDE_DIR: ${YAML_CPP_INCLUDE_DIR}")
+message(STATUS "yaml-cpp_FOUND: ${yaml-cpp_FOUND}")
+if (YAML_CPP_LIBRARIES)
+    message(STATUS "yaml-cpp_FOUND")
+endif ()
 
 
 add_executable(${ProjectMainName}

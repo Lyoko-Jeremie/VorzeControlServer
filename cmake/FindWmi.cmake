@@ -20,3 +20,5 @@ set(WMI_LIBRARIES
 if (NOT MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -c -O3 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64  -fipa-pure-const ")
 endif ()
+
+set(WMI_FOUND 1)
