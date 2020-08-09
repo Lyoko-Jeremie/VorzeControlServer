@@ -416,6 +416,14 @@ public:
         return (it != sessions.end() ? *it : std::shared_ptr<SerialPortSessionTarget>{});
     }
 
+    std::vector<std::string> listOpenPortsName() {
+        std::vector<std::string> names;
+        for (const auto &a: sessions) {
+            names.push_back(a->getSerialPortName());
+        }
+        return names;
+    }
+
     void stopAll() {
         for (auto &a: sessions) {
             if (a) {

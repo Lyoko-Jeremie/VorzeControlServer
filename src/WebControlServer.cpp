@@ -73,6 +73,19 @@ std::string HttpConnectSession::createJsonString() {
 
             root.add_child("portsInfo", pPI);
         }
+
+        {
+            boost::property_tree::ptree pPN;
+            auto pn = serialPortControlServer->listOpenPortsName();
+
+            for (const auto &a : pn) {
+                boost::property_tree::ptree n;
+                n.put("", a);
+                pPN.push_back(std::make_pair("", n));
+            }
+
+            root.add_child("OpenPorts", pPN);
+        }
     }
 
     std::stringstream ss;
