@@ -25,6 +25,8 @@
 #include <functional>
 
 
+void asyncDelay(long long delayTimeMs, boost::asio::executor executor, std::function<void()> callback);
+
 void asyncDelay(std::chrono::milliseconds delayTime, boost::asio::executor executor, std::function<void()> callback);
 
 

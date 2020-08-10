@@ -195,6 +195,11 @@ void HttpConnectSession::path_op(HttpConnectSession::QueryPairsType &queryPairs)
                         }
                     } else {
                         // TODO not this COM
+                        auto c = serialPortControlServer->create(comName);
+                        if (c) {
+                        } else {
+                            // TODO cannot create
+                        }
                     }
 
                 }

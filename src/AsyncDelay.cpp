@@ -20,6 +20,10 @@
 
 #include <iostream>
 
+void asyncDelay(long long delayTimeMs, boost::asio::executor executor, std::function<void()> callback) {
+    asyncDelay(std::chrono::milliseconds{delayTimeMs}, executor, callback);
+}
+
 void asyncDelay(std::chrono::milliseconds delayTime, boost::asio::executor executor, std::function<void()> callback) {
 
     auto timer = std::make_shared<boost::asio::steady_timer>(executor, delayTime);

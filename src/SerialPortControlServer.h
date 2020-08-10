@@ -42,6 +42,11 @@
 #include "ActionModeManager.h"
 #include "error_info.h"
 #include "SerialPortFinder.h"
+#include "AsyncDelay.h"
+
+
+using SendCompleteCallback = std::function<void(const error_info &ec)>;
+extern SendCompleteCallback noop;
 
 class SerialPortSession : public std::enable_shared_from_this<SerialPortSession> {
 protected:
@@ -169,9 +174,6 @@ public:
         return {boost::asio::serial_port::parity::type::none, {"!serialPort.is_open()"}};
     }
 
-    using SendCompleteCallback = std::function<void(const error_info &ec)>;
-
-    static const SendCompleteCallback noop;
 
     void sendAsync(const std::string &data, const SendCompleteCallback &cb = noop) {
         if (!serialPort.is_open()) {
@@ -361,6 +363,8 @@ class SerialPortControlServer : public std::enable_shared_from_this<SerialPortCo
     std::list<std::shared_ptr<SerialPortSessionTarget>> sessions;
 
     std::vector<SerialPortNameInfo> portsInfo;
+
+    std::shared_ptr<boost::asio::steady_timer> timer;
 public:
 
     SerialPortControlServer(boost::asio::executor ex,
@@ -370,11 +374,28 @@ public:
             ex(ex),
             configLoader(configLoader),
             actionModeManager(actionModeManager),
-            serialPortFinder(serialPortFinder) {
+            serialPortFinder(serialPortFinder),
+            timer(std::make_shared<boost::asio::steady_timer>
+                          (ex, std::chrono::milliseconds{5000})) {
     }
 
 public:
     void start() {
+        flushPortInfo();
+        // TODO
+    }
+
+    void stop() {
+        std::cout << "SerialPortControlServer::stop()." << std::endl;
+        if (timer) {
+            boost::system::error_code ec;
+            timer->cancel(ec);
+            timer.reset();
+        }
+        stopAll();
+    }
+
+    void flushPortInfo() {
 #ifdef PromiseCpp_FOUND
         serialPortFinder->promiseFind().then(
                 [self = shared_from_this(), this](const std::vector<SerialPortNameInfo> &ports) {
@@ -390,16 +411,34 @@ public:
                 })
 #endif // PromiseCpp_FOUND
 
-        // TODO
+        auto c = [self = shared_from_this(), this](const boost::system::error_code &e) {
+            if (e) {
+                return;
+            }
+            timer->expires_at(timer->expiry() + std::chrono::milliseconds{5000});
+            flushPortInfo();
+        };
+        timer->async_wait(c);
     }
 
     const std::vector<SerialPortNameInfo> &getPortsInfo() {
         return portsInfo;
     }
 
+    bool checkNameValid(const std::string &_serialPortName) {
+        return portsInfo.end() != std::find_if(
+                portsInfo.begin(), portsInfo.end(),
+                [&_serialPortName](const auto &a) {
+                    return a.comName == _serialPortName;
+                });
+    }
+
     std::shared_ptr<SerialPortSessionTarget> create(
             const std::string &_serialPortName
     ) {
+        if (!checkNameValid(_serialPortName)) {
+            return {};
+        }
         auto s = std::make_shared<SerialPortSessionTarget>(ex, configLoader, actionModeManager);
         sessions.push_back(s->shared_from_this());
         s->init(_serialPortName);

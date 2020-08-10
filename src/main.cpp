@@ -191,7 +191,10 @@ int main(int argc, const char *argv[]) {
 //                    upstreamPool->stop();
 //                    tcpTest->stop();
 //                    connectTestHttps->stop();
-                    ioc.stop();
+                    serialPortControlServer->stop();
+                    asyncDelay(500, ex, [&ioc]() {
+                        ioc.stop();
+                    });
                 }
                     break;
 //#ifndef _WIN32
